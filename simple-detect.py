@@ -74,7 +74,7 @@ def detect_car(frame, vehicle_ids, vehicle_counter, vehicle_positions_previous):
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Caixa verde
                 object_name = { 0: 'pedestre', 1: 'bicicleta', 2: 'carro', 3: 'moto', 7: 'caminhao' }
                 # Coloca o texto ao lado do quadrado verde
-                cv2.putText(frame, object_name[class_ids[i]], (x + w + 10, y + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2, cv2.LINE_AA)
+                cv2.putText(frame, object_name[class_ids[i]], (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2, cv2.LINE_AA)
 
     return detected_objects, frame, vehicle_ids, vehicle_counter, vehicle_positions_previous
 
