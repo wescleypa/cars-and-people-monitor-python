@@ -64,7 +64,6 @@ def detect_car(frame, vehicle_ids, vehicle_counter, vehicle_positions_previous):
 
             # Caso o carro tenha se movido
             if not vehicle_found:
-                print('saiu da posição')
                 vehicle_ids[vehicle_counter] = vehicle_position
                 detected_objects.append(vehicle_counter)
                 vehicle_positions_previous[vehicle_counter] = vehicle_position  # Define a posição anterior
@@ -92,6 +91,7 @@ with mss.mss() as sct:
         )
 
         if detected_objects:
+            winsound.Beep(1000, 2000) # EMITE BIPE DE 100 HERTZ POR SEGUNDO PARA ALERTAR DETECÇÃO
             print(f"Veículos detectados: {', '.join(map(str, detected_objects))}")
             cv2.imshow("Detecção", current_frame)
 
