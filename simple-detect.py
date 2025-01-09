@@ -64,7 +64,7 @@ def detect_car(frame):
                 label = f"{class_ids[i]}: {int(confidences[i] * 100)}%"
                 cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
                 cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-                return label
+                return int(confidences[i] * 100)
 
     return False
 
@@ -81,7 +81,7 @@ with mss.mss() as sct:
         # Detectar objeto na captura de tela
         detected_object = detect_car(frame)
 
-        if detected_object:
+        if detected_object and detect_car > 50:  # Limite de confiança
             print(f"{detected_object} detectado!")
             winsound.Beep(1000, 1000)  # Emitir som de alerta
             cv2.imshow("Detecção", frame)  # Exibir a captura processada
