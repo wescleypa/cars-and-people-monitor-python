@@ -1,8 +1,3 @@
-#
-# 
-# SCRIPT DESENVOLVIDO POR WESCLEY PORTO UTILIZANDO AJUDA DA IA CHATGPT #
-#
-#
 import cv2
 import numpy as np
 import winsound  # Biblioteca nativa do Windows para emitir sons
@@ -14,29 +9,28 @@ net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
 layer_names = net.getLayerNames()
 output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
 
-# Função para detectar carro
-def detect_car(frame):
-    # Obter as dimensões do quadro
-    height, width, channels = frame.shape
+# Dicionários para armazenar as informações de veículos
+vehicle_ids = {}  # Dicionário para armazenar as posições dos carros com seus IDs
+vehicle_counter = 0  # Contador para gerar IDs únicos
+vehicle_positions_previous = {}  # Para armazenar as posições anteriores dos carros
 
-    # Preparar a imagem para YOLO
+# Função para detectar carro
+def detect_car(frame, vehicle_ids, vehicle_counter, vehicle_positions_previous):
+    height, width, channels = frame.shape
     blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
     net.setInput(blob)
     outputs = net.forward(output_layers)
 
-    # Variáveis para a detecção de carro
     class_ids = []
     confidences = []
     boxes = []
 
-    # Percorrer todas as detecções
     for out in outputs:
         for detection in out:
             scores = detection[5:]
             class_id = np.argmax(scores)
             confidence = scores[class_id]
             if confidence > 0.5:  # Limite de confiança para detecção
-                # Obter as coordenadas da caixa delimitadora
                 center_x = int(detection[0] * width)
                 center_y = int(detection[1] * height)
                 w = int(detection[2] * width)
@@ -44,61 +38,62 @@ def detect_car(frame):
                 x = center_x - w // 2
                 y = center_y - h // 2
 
-                # Armazenar as informações
                 boxes.append([x, y, w, h])
                 confidences.append(float(confidence))
                 class_ids.append(class_id)
 
-    # Aplicar a supressão de não-máximos para eliminar caixas redundantes
     indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
 
-    # Verificar se algum objeto foi detectado
+    detected_objects = []
+
     for i in range(len(boxes)):
-        if i in indexes:
-            if class_ids[i] == 0:
-                return "pessoa", confidences[i]
-            elif class_ids[i] == 1:
-                return "bicicleta", confidences[i]
-            elif class_ids[i] == 2:
-                return "carro", confidences[i]
-            elif class_ids[i] == 3:
-                return "moto", confidences[i]
-            elif class_ids[i] == 7:
-                return "caminhão", confidences[i]
+        if i in indexes and class_ids[i] in (0,1,2,3,7):  # Verifica se é um carro (ID 2 no YOLO)
+            x, y, w, h = boxes[i]
+            vehicle_position = (x, y, w, h)
 
-    # Quando nada é detectado, retorna uma tupla
-    return "nenhum", 0  # Retorna tupla (nome do objeto, confiança)
+            vehicle_found = False
+            for vehicle_id, position in vehicle_ids.items():
+                prev_x, prev_y, prev_w, prev_h = position
+                #print(prev_x, x)
+                # Se a posição anterior do carro for próxima, tratamos como o mesmo carro
+                if abs(prev_x - x) < 5 and abs(prev_y - y) < 5:
+                    #print('mesma posição')
+                    # Se o carro ainda está na mesma posição, não faz nada
+                    vehicle_found = True
+                    break
 
+            # Caso o carro tenha se movido
+            if not vehicle_found:
+                print('saiu da posição')
+                vehicle_ids[vehicle_counter] = vehicle_position
+                detected_objects.append(vehicle_counter)
+                vehicle_positions_previous[vehicle_counter] = vehicle_position  # Define a posição anterior
+                vehicle_counter += 1
+
+                # Desenhar o quadrado verde ao redor do carro
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Caixa verde
+
+    return detected_objects, frame, vehicle_ids, vehicle_counter, vehicle_positions_previous
 
 # Configurar a captura de tela com o mss
 with mss.mss() as sct:
     monitor = sct.monitors[1]  # Monitor primário
 
     while True:
-        # Capturar uma captura de tela
         screenshot = sct.grab(monitor)
         frame = np.array(screenshot)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
 
-        # Detectar objeto na captura de tela
-        detected_object, confidence = detect_car(frame)
+        detected_objects, current_frame, vehicle_ids, vehicle_counter, vehicle_positions_previous = detect_car(
+            frame, vehicle_ids, vehicle_counter, vehicle_positions_previous
+        )
 
-        if detected_object != "nenhum" and confidence > 0.5:  # Limite de confiança de 50%
-            print(f"{detected_object} detectado com {confidence*100:.2f}% de confiança!")
-            winsound.Beep(1000, 1000)  # Emitir som de alerta
-            cv2.imshow("Detecção", frame)
+        if detected_objects:
+            print(f"Veículos detectados: {', '.join(map(str, detected_objects))}")
+            cv2.imshow("Detecção", current_frame)
 
-            # Aguardar antes de fechar a janela para a próxima captura
-            key = cv2.waitKey(1000)  # Aguardar 1 segundo
-            if key & 0xFF == ord('q'):
-                break
-        else:
-            # Fechar a janela caso não detecte nada
-            if cv2.getWindowProperty("Detecção", cv2.WND_PROP_VISIBLE) >= 1:
-                cv2.destroyWindow("Detecção")
-
-        # Sair se pressionar 'q' em qualquer momento
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        key = cv2.waitKey(1000)  # Aguardar 1 segundo
+        if key & 0xFF == ord('q'):
             break
 
-cv2.destroyAllWindows()  # Garantir que as janelas sejam fechadas ao encerrar
+    cv2.destroyAllWindows()  # Garantir que as janelas sejam fechadas ao encerrar
