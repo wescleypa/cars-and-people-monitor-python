@@ -1,1 +1,6 @@
 yolov3.weights
+*.png
+*.jpg
+simple-detect.py
+__pycache__/
+simple-detect.py

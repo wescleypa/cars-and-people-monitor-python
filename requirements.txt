@@ -1,0 +1,5 @@
+opencv-python==4.8.0.76    # Biblioteca para processamento de imagens
+numpy==1.25.2              # Biblioteca para operações matemáticas
+configparser==5.0.2        # Biblioteca para manipulação de arquivos de configuração
+mss==7.0.1                 # Biblioteca para capturar a tela
+pygame==2.5.0              # Biblioteca para manipulação de áudio e gráficos

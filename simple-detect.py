@@ -68,7 +68,7 @@ def detect_car(frame, vehicle_ids, vehicle_counter, vehicle_positions_previous):
                 prev_x, prev_y, prev_w, prev_h = position
                 #print(prev_x, x)
                 # Se a posição anterior do carro for próxima, tratamos como o mesmo carro
-                if abs(prev_x - x) < 5 and abs(prev_y - y) < 5:
+                if abs(prev_x - x) < 6 and abs(prev_y - y) < 6:
                     #print('mesma posição')
                     # Se o carro ainda está na mesma posição, não faz nada
                     vehicle_found = True
