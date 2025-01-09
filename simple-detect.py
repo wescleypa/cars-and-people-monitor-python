@@ -79,7 +79,7 @@ def detect_car(frame, vehicle_ids, vehicle_counter, vehicle_positions_previous):
 
 # Configurar a captura de tela com o mss
 with mss.mss() as sct:
-    monitor = sct.monitors[1]  # Monitor primário
+    monitor = sct.monitors[2]  # Monitor primário
 
     while True:
         screenshot = sct.grab(monitor)
