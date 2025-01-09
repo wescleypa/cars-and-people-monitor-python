@@ -2,12 +2,24 @@ import cv2
 import numpy as np
 import winsound  # Biblioteca nativa do Windows para emitir sons
 import mss  # Biblioteca para captura de tela
+import time
+import pygame
+
+# Inicializando o pygame para reproduzir sons
+pygame.mixer.init()
+
+# Carregar o som desejado
+alert_sound = pygame.mixer.Sound('alert_sound.mp3')
 
 # Carregar o modelo YOLO pré-treinado e os arquivos de configuração
 # Faça o download do arquivo yolov3.weights e yolov3.cfg do site oficial do YOLO
 net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
 layer_names = net.getLayerNames()
 output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
+last_detection_time = None  # Inicializando como None para garantir que só inicie a contagem após uma detecção
+detected_last = False  # Variável para controlar se algum objeto foi detectado
+real_detect = None
+last_detect = None
 
 # Dicionários para armazenar as informações de veículos
 vehicle_ids = {}  # Dicionário para armazenar as posições dos carros com seus IDs
@@ -69,6 +81,7 @@ def detect_car(frame, vehicle_ids, vehicle_counter, vehicle_positions_previous):
                 vehicle_positions_previous[vehicle_counter] = vehicle_position  # Define a posição anterior
                 vehicle_counter += 1
 
+
                 # Desenhar o quadrado verde ao redor do carro
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Caixa verde
                 object_name = { 0: 'pedestre', 1: 'bicicleta', 2: 'carro', 3: 'moto', 7: 'caminhao' }
@@ -79,7 +92,7 @@ def detect_car(frame, vehicle_ids, vehicle_counter, vehicle_positions_previous):
 
 # Configurar a captura de tela com o mss
 with mss.mss() as sct:
-    monitor = sct.monitors[2]  # Monitor primário
+    monitor = sct.monitors[1]  # Monitor primário
 
     while True:
         screenshot = sct.grab(monitor)
@@ -91,9 +104,33 @@ with mss.mss() as sct:
         )
 
         if detected_objects:
-            winsound.Beep(1000, 2000) # EMITE BIPE DE 100 HERTZ POR SEGUNDO PARA ALERTAR DETECÇÃO
+            alert_sound.play()
             print(f"Veículos detectados: {', '.join(map(str, detected_objects))}")
-            cv2.imshow("Detecção", current_frame)
+
+            # Atualizando as variáveis de detecção se o objeto foi detectado
+            real_detect = vehicle_ids[detected_objects[0]]  # Pegando a posição do carro detectado
+
+            # Verificando se o carro detectado é diferente do anterior
+            if last_detect != real_detect:
+                last_detect = real_detect  # Atualizando a última detecção
+                last_detection_time = time.time()  # Reiniciando o tempo de contagem
+                detected_last = True  # Marcando que houve uma detecção recente
+
+            # Cortar a imagem para focar no veículo detectado
+            for vehicle_id in detected_objects:
+                x, y, w, h = vehicle_ids[vehicle_id]  # Pega a posição do veículo detectado
+                cropped_frame = current_frame[y:y+300, x:x+300]  # Realiza o corte da imagem
+
+                # Exibir a imagem recortada (se você quiser visualizar o foco no veículo)
+                cv2.imshow("Corte do Carro", cropped_frame)
+
+            #cv2.imshow("Detecção", current_frame)
+        # Verificar se passaram 5 segundos desde a última detecção
+        if detected_last and last_detection_time and (time.time() - last_detection_time >= 5):
+            cv2.destroyAllWindows()  # Fechar as janelas automaticamente após 5 segundos
+            print("Fechando a janela devido à inatividade.")
+            last_detection_time = None  # Resetando a contagem para aguardar nova detecção
+            detected_last = False  # Resetando o flag para indicar que não há mais objeto detectado
 
         key = cv2.waitKey(1000)  # Aguardar 1 segundo
         if key & 0xFF == ord('q'):
