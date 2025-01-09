@@ -16,9 +16,6 @@ output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
 
 # Função para detectar carro
 def detect_car(frame):
-    CONFIDENCE_THRESHOLD = 0.4  # Limite mínimo de confiança
-    NMS_THRESHOLD = 0.3         # Supressão de não-máximos
-
     # Obter as dimensões do quadro
     height, width, channels = frame.shape
 
@@ -38,7 +35,7 @@ def detect_car(frame):
             scores = detection[5:]
             class_id = np.argmax(scores)
             confidence = scores[class_id]
-            if confidence > CONFIDENCE_THRESHOLD:  # Limite de confiança para detecção
+            if confidence > 0.5:  # Limite de confiança para detecção
                 # Obter as coordenadas da caixa delimitadora
                 center_x = int(detection[0] * width)
                 center_y = int(detection[1] * height)
@@ -53,20 +50,25 @@ def detect_car(frame):
                 class_ids.append(class_id)
 
     # Aplicar a supressão de não-máximos para eliminar caixas redundantes
-    indexes = cv2.dnn.NMSBoxes(boxes, confidences, CONFIDENCE_THRESHOLD, NMS_THRESHOLD)
+    indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
 
-    # Verificar se algum carro foi detectado
+    # Verificar se algum objeto foi detectado
     for i in range(len(boxes)):
         if i in indexes:
-            x, y, w, h = boxes[i]
-            if class_ids[i] in [0, 1, 2, 3, 7]:  # Classes relevantes
-                color = (0, 255, 0)  # Verde para destacar
-                label = f"{class_ids[i]}: {int(confidences[i] * 100)}%"
-                cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-                return int(confidences[i] * 100)
+            if class_ids[i] == 0:
+                return "pessoa", confidences[i]
+            elif class_ids[i] == 1:
+                return "bicicleta", confidences[i]
+            elif class_ids[i] == 2:
+                return "carro", confidences[i]
+            elif class_ids[i] == 3:
+                return "moto", confidences[i]
+            elif class_ids[i] == 7:
+                return "caminhão", confidences[i]
 
-    return False
+    # Quando nada é detectado, retorna uma tupla
+    return "nenhum", 0  # Retorna tupla (nome do objeto, confiança)
+
 
 # Configurar a captura de tela com o mss
 with mss.mss() as sct:
@@ -79,28 +81,24 @@ with mss.mss() as sct:
         frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
 
         # Detectar objeto na captura de tela
-        detected_object = detect_car(frame)
+        detected_object, confidence = detect_car(frame)
 
-        if detected_object and detect_car > 50:  # Limite de confiança
-            print(f"{detected_object} detectado!")
+        if detected_object != "nenhum" and confidence > 0.5:  # Limite de confiança de 50%
+            print(f"{detected_object} detectado com {confidence*100:.2f}% de confiança!")
             winsound.Beep(1000, 1000)  # Emitir som de alerta
-            cv2.imshow("Detecção", frame)  # Exibir a captura processada
+            cv2.imshow("Detecção", frame)
 
             # Aguardar antes de fechar a janela para a próxima captura
             key = cv2.waitKey(1000)  # Aguardar 1 segundo
             if key & 0xFF == ord('q'):
                 break
         else:
-            # Fechar a janela caso não detecte nada e ela esteja aberta
-            
+            # Fechar a janela caso não detecte nada
             if cv2.getWindowProperty("Detecção", cv2.WND_PROP_VISIBLE) >= 1:
-            
                 cv2.destroyWindow("Detecção")
-
 
         # Sair se pressionar 'q' em qualquer momento
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
 cv2.destroyAllWindows()  # Garantir que as janelas sejam fechadas ao encerrar
-
